@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strings"
 )
@@ -132,7 +133,12 @@ func randStr(str_size int) string {
 }
 
 func generateWallpaper(media []instagram.Media) string {
-	canvas_filename := filepath.Join("/home/ilya/Pictures/go", randStr(20)+".jpg")
+	usr, err := user.Current()
+	if err != nil {
+		log.Fatalf("Can't get user dir %s.", err)
+	}
+	//TODO: create dir if not exists
+	canvas_filename := filepath.Join(usr.HomeDir, "Pictures", "hexapic", randStr(20)+".jpg")
 	canvas_image := image.NewRGBA(image.Rect(0, 0, 1920, 1280))
 
 	for index, m := range media {
