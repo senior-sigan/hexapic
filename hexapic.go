@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"github.com/carbocation/go-instagram/instagram"
+	"github.com/google/go-github/github"
 	"image"
 	"image/draw"
 	"image/jpeg"
@@ -14,6 +15,31 @@ import (
 	"path/filepath"
 	"strings"
 )
+
+const VERSION string = "\"0.0.1\""
+const USERNAME string = "blan4"
+const REPOSITORY string = "HexapicRB"
+
+func checkUpdate() {
+	client := github.NewClient(nil)
+	releases, _, err := client.Repositories.ListReleases(USERNAME, REPOSITORY, nil)
+	if err != nil {
+		log.Fatalf("Can't get releases info: %v", err)
+	}
+
+	if len(releases) == 0 {
+		log.Println("There is no releases for this program at github.com/%s/%s", USERNAME, REPOSITORY)
+		return
+	}
+
+	latest_tag := github.Stringify(releases[0].TagName)
+	latest_url := github.Stringify(releases[0].Assets[0].BrowserDownloadUrl)
+	if VERSION == latest_tag {
+		log.Println("There are no updates for you.")
+	} else {
+		log.Printf("Download version %s %s", latest_tag, latest_url)
+	}
+}
 
 type WallpaperSetter interface {
 	Set(path string)
@@ -104,6 +130,7 @@ func randStr(str_size int) string {
 }
 
 func main() {
+	checkUpdate()
 	client := instagram.NewClient(nil)
 	client.ClientID = "417c3ee8c9544530b83aa1c24de2abb3"
 	media, _, err := client.Tags.RecentMedia("cat", nil)
