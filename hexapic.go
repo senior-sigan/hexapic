@@ -132,16 +132,9 @@ func randStr(str_size int) string {
 	return string(bytes)
 }
 
-func generateWallpaper(media []instagram.Media) string {
-	usr, err := user.Current()
-	if err != nil {
-		log.Fatalf("Can't get user dir %s.", err)
-	}
-	//TODO: create dir if not exists
-	canvas_filename := filepath.Join(usr.HomeDir, "Pictures", "hexapic", randStr(20)+".jpg")
-	canvas_image := image.NewRGBA(image.Rect(0, 0, 1920, 1280))
-
-	for index, m := range media {
+func getImages(media []instagram.Media) []image.Image {
+	images := make([]image.Image, 0)
+	for _, m := range media {
 		fmt.Printf("ID: %v, Type: %v, Url: %v\n", m.ID, m.Type, m.Images.StandardResolution.URL)
 		resp, err := http.Get(m.Images.StandardResolution.URL)
 		if err != nil {
@@ -149,15 +142,39 @@ func generateWallpaper(media []instagram.Media) string {
 		}
 		defer resp.Body.Close()
 		img, _, err := image.Decode(resp.Body)
+		images = append(images, img)
 		if err != nil {
 			log.Fatalf("Can't decode image %s: %v", m.Images.StandardResolution.URL, err)
-		} else {
-			x := 640 * (index % 3)
-			y := 640 * (index % 2)
-			fmt.Printf("%v %v\n", x, y)
-			draw.Draw(canvas_image, img.Bounds().Add(image.Pt(x, y)), img, image.ZP, draw.Src)
 		}
 	}
+
+	return images
+}
+
+func getPicturesHome() string {
+	usr, err := user.Current()
+	if err != nil {
+		log.Fatalf("Can't get user dir %s.", err)
+	}
+	//TODO: create dir if not exists
+	return filepath.Join(usr.HomeDir, "Pictures", "hexapic")
+}
+
+func generateWallpaper(images []image.Image) string {
+	if len(images) < 6 {
+		log.Fatalf("Need 6 pixs, founded %d", len(images))
+	}
+
+	canvas_filename := filepath.Join(getPicturesHome(), randStr(20)+".jpg")
+	canvas_image := image.NewRGBA(image.Rect(0, 0, 1920, 1280))
+	log.Printf("Found %d pics", len(images))
+	for index, img := range images[0:6] {
+		x := 640 * (index % 3)
+		y := 640 * (index % 2)
+		fmt.Printf("%v %v\n", x, y)
+		draw.Draw(canvas_image, img.Bounds().Add(image.Pt(x, y)), img, image.ZP, draw.Src)
+	}
+
 	toimg, err := os.Create(canvas_filename)
 	if err != nil {
 		log.Fatalf("Can't create file %v", err)
@@ -199,8 +216,33 @@ func searchByTag(tag string) []instagram.Media {
 	return media[0:6]
 }
 
+func getImagesFromFolder(path string) []image.Image {
+	images := make([]image.Image, 0)
+
+	walkFn := func(path string, fileInfo os.FileInfo, err error) error {
+		if fileInfo != nil {
+			filename := strings.ToLower(fileInfo.Name())
+			if strings.HasSuffix(filename, ".jpg") {
+				log.Printf(path)
+				file, _ := os.Open(path)
+				img, format, err := image.Decode(file)
+				log.Println(format)
+				if err != nil {
+					log.Fatalf("Can't decode %s", err)
+				}
+				images = append(images, img)
+			}
+		}
+
+		return nil
+	}
+	filepath.Walk(path, walkFn)
+	return images
+}
+
 var tag string
 var userName string
+var directory string
 var isCheckUpdate bool
 var version bool
 
@@ -209,6 +251,7 @@ func init() {
 	flag.StringVar(&tag, "t", "", "Make Hexapic from latest pictures by tag")
 	flag.BoolVar(&isCheckUpdate, "c", false, "Check for new Hexapic version")
 	flag.BoolVar(&version, "v", false, "Current version")
+	flag.StringVar(&directory, "d", "", "Debug mode. Path to folder with images.")
 }
 
 var Usage = func() {
@@ -234,14 +277,21 @@ func main() {
 	}
 
 	w := BuildSetter()
+
+	if len(directory) != 0 {
+		canvasFileName := generateWallpaper(getImagesFromFolder(directory))
+		w.Set(canvasFileName)
+		return
+	}
+
 	if len(tag) != 0 {
-		canvasFileName := generateWallpaper(searchByTag(tag))
+		canvasFileName := generateWallpaper(getImages(searchByTag(tag)))
 		w.Set(canvasFileName)
 		return
 	}
 
 	if len(userName) != 0 {
-		canvasFileName := generateWallpaper(searchByName(userName))
+		canvasFileName := generateWallpaper(getImages(searchByName(userName)))
 		w.Set(canvasFileName)
 		return
 	}
