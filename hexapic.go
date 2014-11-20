@@ -16,6 +16,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 const VERSION string = "\"0.1.0\""
@@ -27,20 +28,20 @@ func checkUpdate() {
 	client := github.NewClient(nil)
 	releases, _, err := client.Repositories.ListReleases(USERNAME, REPOSITORY, nil)
 	if err != nil {
-		log.Fatalf("Can't get releases info: %v.", err)
+		log.Fatalf("Can't get releases info: %v", err)
 	}
 
 	if len(releases) == 0 {
-		fmt.Println("There is no releases for this program at github.com/%s/%s.", USERNAME, REPOSITORY)
+		fmt.Println("There is no releases for this program at github.com/%s/%s", USERNAME, REPOSITORY)
 		return
 	}
 
 	latest_tag := github.Stringify(releases[0].TagName)
 	latest_url := github.Stringify(releases[0].Assets[0].BrowserDownloadUrl)
 	if VERSION == latest_tag {
-		fmt.Println("There are no updates for you.")
+		fmt.Println("There are no updates for you")
 	} else {
-		fmt.Printf("Download version %s at %s.", latest_tag, latest_url)
+		fmt.Printf("Download version %s at %s", latest_tag, latest_url)
 	}
 }
 
@@ -58,7 +59,7 @@ func (g *Gnome3WallpaperSetter) Set(path string) {
 	fmt.Printf("Set desktop wallpaper %s\n", path)
 	err := exec.Command("gsettings", "set", "org.gnome.desktop.background", "picture-uri", "file:///", path).Start()
 	if err != nil {
-		fmt.Printf("Can't set desktop wallpaper %s: %v.\n", path, err)
+		fmt.Printf("Can't set desktop wallpaper %s: %v\n", path, err)
 	}
 }
 
@@ -66,7 +67,7 @@ func (m *MateWallpaperSetter) Set(path string) {
 	fmt.Printf("Set desktop wallpaper %s\n", path)
 	err := exec.Command("gsettings", "set", "org.mate.background", "picture-filename", path).Start()
 	if err != nil {
-		fmt.Printf("Can't set desktop wallpaper %s: %v.", path, err)
+		fmt.Printf("Can't set desktop wallpaper %s: %v", path, err)
 	}
 }
 
@@ -82,17 +83,17 @@ func (x *XFCE4WallpaperSetter) Set(path string) {
 }
 
 func (c *CinnamonWallpaperSetter) Set(path string) {
-	log.Fatal("Not implemented for Cinnamon desktop manager.")
+	log.Fatal("Not implemented for Cinnamon desktop manager")
 }
 
 func (k *KDE4WallpaperSetter) Set(path string) {
-	log.Fatal("Not implemented for KDE desktop manager.")
+	log.Fatal("Not implemented for KDE desktop manager")
 }
 
 func BuildSetter() (w WallpaperSetter) {
 	w = WM[GetWMName()]
 	if w == nil {
-		log.Fatalf("%s not supported. Ask maitainer.\n", GetWMName())
+		log.Fatalf("%s not supported. Ask maitainer\n", GetWMName())
 	}
 	return
 }
@@ -114,7 +115,7 @@ func GetWMName() string {
 	)
 	out, err = exec.Command("xprop", "-root", "_NET_SUPPORTING_WM_CHECK").Output()
 	if err != nil {
-		log.Fatalf("Unable to open X session: %v.", err)
+		log.Fatalf("Unable to open X session: %v", err)
 	}
 	index = strings.LastIndex(string(out), "#")
 	window_id := string(out)[index+2:]
@@ -126,7 +127,7 @@ func GetWMName() string {
 	index = strings.LastIndex(string(out), "=")
 	wm := string(out)[index+3 : len(out)-2]
 
-	fmt.Printf("Founded %s windows manager.", wm)
+	fmt.Printf("Founded %s windows manager", wm)
 	return wm
 }
 
@@ -158,20 +159,30 @@ func randStr(str_size int) string {
 }
 
 func getImages(media []instagram.Media) []image.Image {
-	images := make([]image.Image, 0)
-	for _, m := range media {
-		fmt.Printf("ID: %v, Type: %v, Url: %v\n", m.ID, m.Type, m.Images.StandardResolution.URL)
-		resp, err := http.Get(m.Images.StandardResolution.URL)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer resp.Body.Close()
-		img, _, err := image.Decode(resp.Body)
-		images = append(images, img)
-		if err != nil {
-			log.Fatalf("Can't decode image %s: %v", m.Images.StandardResolution.URL, err)
-		}
+	images := make([]image.Image, 6)
+	var wg sync.WaitGroup
+	for i, m := range media[0:6] {
+		wg.Add(1)
+		go func(i int, m instagram.Media) {
+			defer wg.Done()
+			fmt.Printf("ID: %v, Type: %v, Url: %v\n", m.ID, m.Type, m.Images.StandardResolution.URL)
+			resp, err := http.Get(m.Images.StandardResolution.URL)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer resp.Body.Close()
+
+			img, _, err := image.Decode(resp.Body)
+			if err != nil {
+				log.Fatalf("Can't decode image %s: %v", m.Images.StandardResolution.URL, err)
+			}
+
+			images[i] = img
+			fmt.Print(".")
+		}(i, m)
 	}
+	wg.Wait()
+	fmt.Println()
 
 	return images
 }
@@ -179,7 +190,7 @@ func getImages(media []instagram.Media) []image.Image {
 func getPicturesHome() string {
 	usr, err := user.Current()
 	if err != nil {
-		log.Fatalf("Can't get user dir %s.", err)
+		log.Fatalf("Can't get user dir %s", err)
 	}
 	//TODO: create dir if not exists
 	return filepath.Join(usr.HomeDir, "Pictures", "hexapic")
@@ -206,7 +217,7 @@ func generateWallpaper(images []image.Image) string {
 	defer toimg.Close()
 	jpeg.Encode(toimg, canvas_image, &jpeg.Options{jpeg.DefaultQuality})
 
-	fmt.Printf("Collage %s created.\n", canvas_filename)
+	fmt.Printf("Collage %s created\n", canvas_filename)
 
 	return canvas_filename
 }
@@ -222,7 +233,7 @@ func searchByName(userName string) []instagram.Media {
 	fmt.Printf("Found user %s", users[0].Username)
 	media, _, err := client.Users.RecentMedia(users[0].ID, nil)
 	if err != nil {
-		log.Fatalf("Can't load data from instagram: %v.", err)
+		log.Fatalf("Can't load data from instagram: %v", err)
 	}
 
 	return media[0:6]
@@ -234,7 +245,7 @@ func searchByTag(tag string) []instagram.Media {
 	client.ClientID = CLIENT_ID
 	media, _, err := client.Tags.RecentMedia(tag, nil)
 	if err != nil {
-		log.Fatalf("Can't load data from instagram: %v.", err)
+		log.Fatalf("Can't load data from instagram: %v", err)
 	}
 
 	return media[0:6]
@@ -275,7 +286,7 @@ func init() {
 	flag.StringVar(&tag, "t", "", "Make Hexapic from latest pictures by tag")
 	flag.BoolVar(&isCheckUpdate, "c", false, "Check for new Hexapic version")
 	flag.BoolVar(&version, "v", false, "Current version")
-	flag.StringVar(&directory, "d", "", "Debug mode. Path to folder with images.")
+	flag.StringVar(&directory, "d", "", "Debug mode. Path to folder with images")
 }
 
 var Usage = func() {
