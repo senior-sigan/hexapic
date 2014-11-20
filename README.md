@@ -4,7 +4,7 @@ Written by @blan4
 
 Download last 6 pictures from instagram, generate collage and set it as desktop wallpaper.
 
-![](https://www.dropbox.com/s/hu8cdxdmgaq8irj/YBBXQXLA.jpg)
+![](https://raw.githubusercontent.com/blan4/Hexapic/master/public/lifeofadventure.jpg)
 
 ##Example usage
 
