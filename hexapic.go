@@ -18,9 +18,9 @@ import (
 	"strings"
 )
 
-const VERSION string = "\"0.0.1\""
+const VERSION string = "\"0.1.0\""
 const USERNAME string = "blan4"
-const REPOSITORY string = "HexapicRB"
+const REPOSITORY string = "Hexapic"
 const CLIENT_ID string = "417c3ee8c9544530b83aa1c24de2abb3"
 
 func checkUpdate() {
