@@ -31,16 +31,16 @@ func checkUpdate() {
 	}
 
 	if len(releases) == 0 {
-		log.Println("There is no releases for this program at github.com/%s/%s.", USERNAME, REPOSITORY)
+		fmt.Println("There is no releases for this program at github.com/%s/%s.", USERNAME, REPOSITORY)
 		return
 	}
 
 	latest_tag := github.Stringify(releases[0].TagName)
 	latest_url := github.Stringify(releases[0].Assets[0].BrowserDownloadUrl)
 	if VERSION == latest_tag {
-		log.Println("There are no updates for you.")
+		fmt.Println("There are no updates for you.")
 	} else {
-		log.Printf("Download version %s at %s.", latest_tag, latest_url)
+		fmt.Printf("Download version %s at %s.", latest_tag, latest_url)
 	}
 }
 
@@ -55,25 +55,30 @@ type CinnamonWallpaperSetter struct{}
 type KDE4WallpaperSetter struct{}
 
 func (g *Gnome3WallpaperSetter) Set(path string) {
-	log.Printf("Set desktop wallpaper %s", path)
+	fmt.Printf("Set desktop wallpaper %s\n", path)
 	err := exec.Command("gsettings", "set", "org.gnome.desktop.background", "picture-uri", "file:///", path).Start()
 	if err != nil {
-		log.Printf("Can't set desktop wallpaper %s: %v.", path, err)
+		fmt.Printf("Can't set desktop wallpaper %s: %v.\n", path, err)
 	}
 }
 
 func (m *MateWallpaperSetter) Set(path string) {
-	log.Printf("Set desktop wallpaper %s", path)
+	fmt.Printf("Set desktop wallpaper %s\n", path)
 	err := exec.Command("gsettings", "set", "org.mate.background", "picture-filename", path).Start()
 	if err != nil {
-		log.Printf("Can't set desktop wallpaper %s: %v.", path, err)
+		fmt.Printf("Can't set desktop wallpaper %s: %v.", path, err)
 	}
 }
 
 func (x *XFCE4WallpaperSetter) Set(path string) {
-	log.Printf("Set desktop wallpaper %s", path)
-	exec.Command("xfconf-query", "-c", "xfce4-desktop", "-p", "/backdrop/screen0/monitorLVDS1/workspace0/last-image", "-s", path)
-	exec.Command("xfconf-query", "-c", "xfce4-desktop", "-p", "/backdrop/screen0/monitorLVDS1/workspace1/last-image", "-s", path)
+	fmt.Printf("Set desktop wallpaper %s\n", path)
+	displays := GetDisplayNames()
+	for _, display := range displays {
+		err := exec.Command("xfconf-query", "-c", "xfce4-desktop", "-p", fmt.Sprintf("/backdrop/screen0/monitor%s/workspace0/last-image", display), "-s", path).Run()
+		if err != nil {
+			log.Fatalf("Can't set wallpaper on display %s: %s", display, err)
+		}
+	}
 }
 
 func (c *CinnamonWallpaperSetter) Set(path string) {
@@ -86,6 +91,9 @@ func (k *KDE4WallpaperSetter) Set(path string) {
 
 func BuildSetter() (w WallpaperSetter) {
 	w = WM[GetWMName()]
+	if w == nil {
+		log.Fatalf("%s not supported. Ask maitainer.\n", GetWMName())
+	}
 	return
 }
 
@@ -118,8 +126,25 @@ func GetWMName() string {
 	index = strings.LastIndex(string(out), "=")
 	wm := string(out)[index+3 : len(out)-2]
 
-	log.Printf("Founded %s windows manager.", wm)
+	fmt.Printf("Founded %s windows manager.", wm)
 	return wm
+}
+
+func GetDisplayNames() []string {
+	displays := make([]string, 0)
+	out, err := exec.Command("xrandr").Output()
+	if err != nil {
+		log.Fatalf("%s", err)
+	}
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		i := strings.LastIndex(line, " connected")
+		if i != -1 {
+			displays = append(displays, line[0:i])
+		}
+	}
+
+	return displays
 }
 
 func randStr(str_size int) string {
@@ -167,11 +192,10 @@ func generateWallpaper(images []image.Image) string {
 
 	canvas_filename := filepath.Join(getPicturesHome(), randStr(20)+".jpg")
 	canvas_image := image.NewRGBA(image.Rect(0, 0, 1920, 1280))
-	log.Printf("Found %d pics", len(images))
+	fmt.Printf("Found %d pics", len(images))
 	for index, img := range images[0:6] {
 		x := 640 * (index % 3)
 		y := 640 * (index % 2)
-		fmt.Printf("%v %v\n", x, y)
 		draw.Draw(canvas_image, img.Bounds().Add(image.Pt(x, y)), img, image.ZP, draw.Src)
 	}
 
@@ -182,20 +206,20 @@ func generateWallpaper(images []image.Image) string {
 	defer toimg.Close()
 	jpeg.Encode(toimg, canvas_image, &jpeg.Options{jpeg.DefaultQuality})
 
-	log.Printf("Collage %s created", canvas_filename)
+	fmt.Printf("Collage %s created.\n", canvas_filename)
 
 	return canvas_filename
 }
 
 func searchByName(userName string) []instagram.Media {
-	log.Printf("Searching by username %s", userName)
+	fmt.Printf("Searching by username %s", userName)
 	client := instagram.NewClient(nil)
 	client.ClientID = CLIENT_ID
 	users, _, err := client.Users.Search(userName, nil)
 	if err != nil {
 		log.Fatalf("Can't find user with name %s", userName)
 	}
-	log.Printf("Found user %s", users[0].Username)
+	fmt.Printf("Found user %s", users[0].Username)
 	media, _, err := client.Users.RecentMedia(users[0].ID, nil)
 	if err != nil {
 		log.Fatalf("Can't load data from instagram: %v.", err)
@@ -205,7 +229,7 @@ func searchByName(userName string) []instagram.Media {
 }
 
 func searchByTag(tag string) []instagram.Media {
-	log.Printf("Searching by tag %s", tag)
+	fmt.Printf("Searching by tag %s", tag)
 	client := instagram.NewClient(nil)
 	client.ClientID = CLIENT_ID
 	media, _, err := client.Tags.RecentMedia(tag, nil)
@@ -223,10 +247,10 @@ func getImagesFromFolder(path string) []image.Image {
 		if fileInfo != nil {
 			filename := strings.ToLower(fileInfo.Name())
 			if strings.HasSuffix(filename, ".jpg") {
-				log.Printf(path)
+				fmt.Printf(path)
 				file, _ := os.Open(path)
 				img, format, err := image.Decode(file)
-				log.Println(format)
+				fmt.Println(format)
 				if err != nil {
 					log.Fatalf("Can't decode %s", err)
 				}
