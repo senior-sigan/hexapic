@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/blan4/hexapic/instagramFix"
 	"github.com/carbocation/go-instagram/instagram"
 	"image"
 	"image/draw"
@@ -12,6 +13,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 )
@@ -102,10 +104,11 @@ func searchByName(userName string, httpClient *http.Client) []instagram.Media {
 }
 
 func searchByTag(tag string, httpClient *http.Client) []instagram.Media {
-	fmt.Printf("Searching by tag %s", tag)
-	client := instagram.NewClient(httpClient)
-	client.ClientID = CLIENT_ID
-	media, _, err := client.Tags.RecentMedia(tag, nil)
+	fmt.Printf("Searching by tag %s\n", tag)
+	c := instagram.NewClient(httpClient)
+	c.ClientID = CLIENT_ID
+	service := instagramFix.TagsService{Client: c}
+	media, _, err := service.RecentMediaFix(tag, nil)
 	if err != nil {
 		log.Fatalf("Can't load data from instagram: %v", err)
 	}
@@ -114,6 +117,7 @@ func searchByTag(tag string, httpClient *http.Client) []instagram.Media {
 }
 
 func GetWallpaper(searchType string, value string, httpClient *http.Client) (image.Image, error) {
+	value = url.QueryEscape(value)
 	switch searchType {
 	case "tag":
 		return GenerateWallpaper(getImages(searchByTag(value, httpClient), httpClient)), nil
