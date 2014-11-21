@@ -16,7 +16,7 @@ import (
 	"strings"
 )
 
-const VERSION string = "\"0.1.0\""
+const VERSION string = "\"0.2.0\""
 const USERNAME string = "blan4"
 const REPOSITORY string = "Hexapic"
 
