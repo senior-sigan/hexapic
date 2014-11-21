@@ -33,7 +33,10 @@ func randMedia(media []instagram.Media) []instagram.Media {
 	return res
 }
 
-func getImages(media []instagram.Media) []image.Image {
+func getImages(media []instagram.Media, httpClient *http.Client) []image.Image {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
 	images := make([]image.Image, 6)
 	var wg sync.WaitGroup
 	for i, m := range media[0:6] {
@@ -41,7 +44,7 @@ func getImages(media []instagram.Media) []image.Image {
 		go func(i int, m instagram.Media) {
 			defer wg.Done()
 			fmt.Printf("ID: %v, Type: %v, Url: %v\n", m.ID, m.Type, m.Images.StandardResolution.URL)
-			resp, err := http.Get(m.Images.StandardResolution.URL)
+			resp, err := httpClient.Get(m.Images.StandardResolution.URL)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -110,9 +113,9 @@ func searchByTag(tag string, httpClient *http.Client) []instagram.Media {
 func GetWallpaper(searchType string, value string, httpClient *http.Client) (image.Image, error) {
 	switch searchType {
 	case "tag":
-		return GenerateWallpaper(getImages(searchByTag(value, httpClient))), nil
+		return GenerateWallpaper(getImages(searchByTag(value, httpClient), httpClient)), nil
 	case "user":
-		return GenerateWallpaper(getImages(searchByName(value, httpClient))), nil
+		return GenerateWallpaper(getImages(searchByName(value, httpClient), httpClient)), nil
 	default:
 		return image.Image(image.NewRGBA(image.Rect(0, 0, 1920, 1280))), errors.New("Wrong searchType %s. Accepted only tag and user\n")
 	}
