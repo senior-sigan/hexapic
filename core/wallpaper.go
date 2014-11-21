@@ -78,9 +78,9 @@ func GenerateWallpaper(images []image.Image) image.Image {
 	return image.Image(canvas_image)
 }
 
-func searchByName(userName string) []instagram.Media {
+func searchByName(userName string, httpClient *http.Client) []instagram.Media {
 	fmt.Printf("Searching by username %s\n", userName)
-	client := instagram.NewClient(nil)
+	client := instagram.NewClient(httpClient)
 	client.ClientID = CLIENT_ID
 	users, _, err := client.Users.Search(userName, nil)
 	if err != nil {
@@ -95,9 +95,9 @@ func searchByName(userName string) []instagram.Media {
 	return randMedia(media)
 }
 
-func searchByTag(tag string) []instagram.Media {
+func searchByTag(tag string, httpClient *http.Client) []instagram.Media {
 	fmt.Printf("Searching by tag %s", tag)
-	client := instagram.NewClient(nil)
+	client := instagram.NewClient(httpClient)
 	client.ClientID = CLIENT_ID
 	media, _, err := client.Tags.RecentMedia(tag, nil)
 	if err != nil {
@@ -107,12 +107,12 @@ func searchByTag(tag string) []instagram.Media {
 	return randMedia(media)
 }
 
-func GetWallpaper(searchType string, value string) (image.Image, error) {
+func GetWallpaper(searchType string, value string, httpClient *http.Client) (image.Image, error) {
 	switch searchType {
 	case "tag":
-		return GenerateWallpaper(getImages(searchByTag(value))), nil
+		return GenerateWallpaper(getImages(searchByTag(value, httpClient))), nil
 	case "user":
-		return GenerateWallpaper(getImages(searchByName(value))), nil
+		return GenerateWallpaper(getImages(searchByName(value, httpClient))), nil
 	default:
 		return image.Image(image.NewRGBA(image.Rect(0, 0, 1920, 1280))), errors.New("Wrong searchType %s. Accepted only tag and user\n")
 	}

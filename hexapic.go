@@ -144,7 +144,7 @@ func main() {
 	}
 
 	if len(tag) != 0 {
-		wallpaper, err := core.GetWallpaper("tag", tag)
+		wallpaper, err := core.GetWallpaper("tag", tag, nil)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -154,7 +154,7 @@ func main() {
 	}
 
 	if len(userName) != 0 {
-		wallpaper, err := core.GetWallpaper("user", userName)
+		wallpaper, err := core.GetWallpaper("user", userName, nil)
 		if err != nil {
 			log.Fatal(err)
 		}
