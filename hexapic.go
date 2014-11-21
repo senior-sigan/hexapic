@@ -4,27 +4,21 @@ import (
 	"crypto/rand"
 	"flag"
 	"fmt"
-	"github.com/carbocation/go-instagram/instagram"
+	"github.com/blan4/hexapic/core"
+	"github.com/blan4/hexapic/wm"
 	"github.com/google/go-github/github"
 	"image"
-	"image/draw"
 	"image/jpeg"
 	"log"
-	mathRand "math/rand"
-	"net/http"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strings"
-	"sync"
-	"time"
 )
 
 const VERSION string = "\"0.1.0\""
 const USERNAME string = "blan4"
 const REPOSITORY string = "Hexapic"
-const CLIENT_ID string = "417c3ee8c9544530b83aa1c24de2abb3"
 
 func checkUpdate() {
 	client := github.NewClient(nil)
@@ -47,148 +41,6 @@ func checkUpdate() {
 	}
 }
 
-type WallpaperSetter interface {
-	Set(path string)
-}
-
-type MateWallpaperSetter struct{}
-type XFCE4WallpaperSetter struct{}
-type Gnome3WallpaperSetter struct{}
-type CinnamonWallpaperSetter struct{}
-type KDE4WallpaperSetter struct{}
-
-func (g *Gnome3WallpaperSetter) Set(path string) {
-	fmt.Printf("Set desktop wallpaper %s\n", path)
-	err := exec.Command("gsettings", "set", "org.gnome.desktop.background", "picture-uri", "file:///", path).Start()
-	if err != nil {
-		fmt.Printf("Can't set desktop wallpaper %s: %v\n", path, err)
-	}
-}
-
-func (m *MateWallpaperSetter) Set(path string) {
-	fmt.Printf("Set desktop wallpaper %s\n", path)
-	err := exec.Command("gsettings", "set", "org.mate.background", "picture-filename", path).Start()
-	if err != nil {
-		fmt.Printf("Can't set desktop wallpaper %s: %v", path, err)
-	}
-}
-
-func (x *XFCE4WallpaperSetter) Set(path string) {
-	fmt.Printf("Set desktop wallpaper %s\n", path)
-	displays := GetDisplayNames()
-	for _, display := range displays {
-		err := exec.Command("xfconf-query", "-c", "xfce4-desktop", "-p", fmt.Sprintf("/backdrop/screen0/monitor%s/workspace0/last-image", display), "-s", path).Run()
-		if err != nil {
-			log.Fatalf("Can't set wallpaper on display %s: %s", display, err)
-		}
-	}
-}
-
-func (c *CinnamonWallpaperSetter) Set(path string) {
-	log.Fatal("Not implemented for Cinnamon desktop manager")
-}
-
-func (k *KDE4WallpaperSetter) Set(path string) {
-	log.Fatal("Not implemented for KDE desktop manager")
-}
-
-func BuildSetter() (w WallpaperSetter) {
-	w = WM[GetWMName()]
-	if w == nil {
-		log.Fatalf("%s not supported. Ask maitainer\n", GetWMName())
-	}
-	return
-}
-
-var WM = map[string]WallpaperSetter{
-	"Metacity (Marco)": new(MateWallpaperSetter),
-	"Xfwm4":            new(XFCE4WallpaperSetter),
-	"Gnome3":           new(Gnome3WallpaperSetter),
-	"Gala":             new(Gnome3WallpaperSetter),
-	"Kwin":             new(KDE4WallpaperSetter),
-	"Mutter (Muffin)":  new(CinnamonWallpaperSetter),
-}
-
-func GetWMName() string {
-	var (
-		out   []byte
-		err   error
-		index int
-	)
-	out, err = exec.Command("xprop", "-root", "_NET_SUPPORTING_WM_CHECK").Output()
-	if err != nil {
-		log.Fatalf("Unable to open X session: %v", err)
-	}
-	index = strings.LastIndex(string(out), "#")
-	window_id := string(out)[index+2:]
-
-	out, err = exec.Command("xprop", "-id", window_id, "8s", "_NET_WM_NAME").Output()
-	if err != nil {
-		log.Fatal(err)
-	}
-	index = strings.LastIndex(string(out), "=")
-	wm := string(out)[index+3 : len(out)-2]
-
-	fmt.Printf("Founded %s windows manager\n", wm)
-	return wm
-}
-
-func GetDisplayNames() []string {
-	displays := make([]string, 0)
-	out, err := exec.Command("xrandr").Output()
-	if err != nil {
-		log.Fatalf("%s", err)
-	}
-	lines := strings.Split(string(out), "\n")
-	for _, line := range lines {
-		i := strings.LastIndex(line, " connected")
-		if i != -1 {
-			displays = append(displays, line[0:i])
-		}
-	}
-
-	return displays
-}
-
-func randStr(str_size int) string {
-	alphanum := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-	var bytes = make([]byte, str_size)
-	rand.Read(bytes)
-	for i, b := range bytes {
-		bytes[i] = alphanum[b%byte(len(alphanum))]
-	}
-	return string(bytes)
-}
-
-func getImages(media []instagram.Media) []image.Image {
-	images := make([]image.Image, 6)
-	var wg sync.WaitGroup
-	for i, m := range media[0:6] {
-		wg.Add(1)
-		go func(i int, m instagram.Media) {
-			defer wg.Done()
-			fmt.Printf("ID: %v, Type: %v, Url: %v\n", m.ID, m.Type, m.Images.StandardResolution.URL)
-			resp, err := http.Get(m.Images.StandardResolution.URL)
-			if err != nil {
-				log.Fatal(err)
-			}
-			defer resp.Body.Close()
-
-			img, _, err := image.Decode(resp.Body)
-			if err != nil {
-				log.Fatalf("Can't decode image %s: %v", m.Images.StandardResolution.URL, err)
-			}
-
-			images[i] = img
-			fmt.Print(".")
-		}(i, m)
-	}
-	wg.Wait()
-	fmt.Println()
-
-	return images
-}
-
 func getPicturesHome() string {
 	usr, err := user.Current()
 	if err != nil {
@@ -196,79 +48,6 @@ func getPicturesHome() string {
 	}
 	//TODO: create dir if not exists
 	return filepath.Join(usr.HomeDir, "Pictures", "hexapic")
-}
-
-func generateWallpaper(images []image.Image) string {
-	if len(images) < 6 {
-		log.Fatalf("Need 6 pixs, founded %d", len(images))
-	}
-
-	canvas_filename := filepath.Join(getPicturesHome(), randStr(20)+".jpg")
-	canvas_image := image.NewRGBA(image.Rect(0, 0, 1920, 1280))
-	fmt.Printf("Found %d pics", len(images))
-	for index, img := range images[0:6] {
-		x := 640 * (index % 3)
-		y := 640 * (index % 2)
-		draw.Draw(canvas_image, img.Bounds().Add(image.Pt(x, y)), img, image.ZP, draw.Src)
-	}
-
-	toimg, err := os.Create(canvas_filename)
-	if err != nil {
-		log.Fatalf("Can't create file %v", err)
-	}
-	defer toimg.Close()
-	jpeg.Encode(toimg, canvas_image, &jpeg.Options{jpeg.DefaultQuality})
-
-	fmt.Printf("Collage %s created\n", canvas_filename)
-
-	return canvas_filename
-}
-
-func searchByName(userName string) []instagram.Media {
-	fmt.Printf("Searching by username %s\n", userName)
-	client := instagram.NewClient(nil)
-	client.ClientID = CLIENT_ID
-	users, _, err := client.Users.Search(userName, nil)
-	if err != nil {
-		log.Fatalf("Can't find user with name %s\n", userName)
-	}
-	fmt.Printf("Found user %s", users[0].Username)
-	media, _, err := client.Users.RecentMedia(users[0].ID, nil)
-	if err != nil {
-		log.Fatalf("Can't load data from instagram: %v\n", err)
-	}
-
-	return randMedia(media)
-}
-
-func randMedia(media []instagram.Media) []instagram.Media {
-	if len(media) < 6 {
-		log.Fatalf("Not enough media")
-	}
-	if len(media) == 6 {
-		return media
-	}
-
-	res := make([]instagram.Media, 6)
-	mathRand.Seed(time.Now().UTC().UnixNano())
-	list := mathRand.Perm(len(media))[0:6]
-	for i, n := range list {
-		res[i] = media[n]
-	}
-
-	return res
-}
-
-func searchByTag(tag string) []instagram.Media {
-	fmt.Printf("Searching by tag %s", tag)
-	client := instagram.NewClient(nil)
-	client.ClientID = CLIENT_ID
-	media, _, err := client.Tags.RecentMedia(tag, nil)
-	if err != nil {
-		log.Fatalf("Can't load data from instagram: %v", err)
-	}
-
-	return randMedia(media)
 }
 
 func getImagesFromFolder(path string) []image.Image {
@@ -293,6 +72,31 @@ func getImagesFromFolder(path string) []image.Image {
 	}
 	filepath.Walk(path, walkFn)
 	return images
+}
+
+func randStr(str_size int) string {
+	alphanum := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	var bytes = make([]byte, str_size)
+	rand.Read(bytes)
+	for i, b := range bytes {
+		bytes[i] = alphanum[b%byte(len(alphanum))]
+	}
+	return string(bytes)
+}
+
+func saveWallpaper(wallpaper image.Image) string {
+	filename := filepath.Join(getPicturesHome(), randStr(20)+".jpg")
+
+	toimg, err := os.Create(filename)
+	if err != nil {
+		log.Fatalf("Can't create file %v", err)
+	}
+	defer toimg.Close()
+	jpeg.Encode(toimg, wallpaper, &jpeg.Options{jpeg.DefaultQuality})
+
+	fmt.Printf("Collage %s created\n", filename)
+
+	return filename
 }
 
 var tag string
@@ -331,22 +135,30 @@ func main() {
 		return
 	}
 
-	w := BuildSetter()
+	w := wm.BuildSetter()
 
 	if len(directory) != 0 {
-		canvasFileName := generateWallpaper(getImagesFromFolder(directory))
+		canvasFileName := saveWallpaper(core.GenerateWallpaper(getImagesFromFolder(directory)))
 		w.Set(canvasFileName)
 		return
 	}
 
 	if len(tag) != 0 {
-		canvasFileName := generateWallpaper(getImages(searchByTag(tag)))
+		wallpaper, err := core.GetWallpaper("tag", tag)
+		if err != nil {
+			log.Fatal(err)
+		}
+		canvasFileName := saveWallpaper(wallpaper)
 		w.Set(canvasFileName)
 		return
 	}
 
 	if len(userName) != 0 {
-		canvasFileName := generateWallpaper(getImages(searchByName(userName)))
+		wallpaper, err := core.GetWallpaper("user", userName)
+		if err != nil {
+			log.Fatal(err)
+		}
+		canvasFileName := saveWallpaper(wallpaper)
 		w.Set(canvasFileName)
 		return
 	}
