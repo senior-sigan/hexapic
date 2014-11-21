@@ -95,7 +95,8 @@ func searchByName(userName string, httpClient *http.Client) []instagram.Media {
 		log.Fatalf("Can't find user with name %s\n", userName)
 	}
 	fmt.Printf("Found user %s", users[0].Username)
-	media, _, err := client.Users.RecentMedia(users[0].ID, nil)
+	params := &instagram.Parameters{Count: 100}
+	media, _, err := client.Users.RecentMedia(users[0].ID, params)
 	if err != nil {
 		log.Fatalf("Can't load data from instagram: %v\n", err)
 	}
@@ -108,7 +109,8 @@ func searchByTag(tag string, httpClient *http.Client) []instagram.Media {
 	c := instagram.NewClient(httpClient)
 	c.ClientID = CLIENT_ID
 	service := instagramFix.TagsService{Client: c}
-	media, _, err := service.RecentMediaFix(tag, nil)
+	params := &instagram.Parameters{Count: 100}
+	media, _, err := service.RecentMediaFix(tag, params)
 	if err != nil {
 		log.Fatalf("Can't load data from instagram: %v", err)
 	}
