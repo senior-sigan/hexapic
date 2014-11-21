@@ -6,6 +6,9 @@ import (
 	"github.com/carbocation/go-instagram/instagram"
 	"image"
 	"image/draw"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"log"
 	"math/rand"
 	"net/http"
@@ -43,16 +46,16 @@ func getImages(media []instagram.Media, httpClient *http.Client) []image.Image {
 		wg.Add(1)
 		go func(i int, m instagram.Media) {
 			defer wg.Done()
-			fmt.Printf("ID: %v, Type: %v, Url: %v\n", m.ID, m.Type, m.Images.StandardResolution.URL)
+			log.Printf("ID: %v, Type: %v, Url: %v\n", m.ID, m.Type, m.Images.StandardResolution.URL)
 			resp, err := httpClient.Get(m.Images.StandardResolution.URL)
 			if err != nil {
 				log.Fatal(err)
 			}
 			defer resp.Body.Close()
 
-			img, _, err := image.Decode(resp.Body)
+			img, format, err := image.Decode(resp.Body)
 			if err != nil {
-				log.Fatalf("Can't decode image %s: %v", m.Images.StandardResolution.URL, err)
+				log.Fatalf("Can't decode image %s of format %s: %v", m.Images.StandardResolution.URL, format, err)
 			}
 
 			images[i] = img
