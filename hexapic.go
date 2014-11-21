@@ -10,6 +10,7 @@ import (
 	"image/draw"
 	"image/jpeg"
 	"log"
+	mathRand "math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -17,6 +18,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 const VERSION string = "\"0.1.0\""
@@ -127,7 +129,7 @@ func GetWMName() string {
 	index = strings.LastIndex(string(out), "=")
 	wm := string(out)[index+3 : len(out)-2]
 
-	fmt.Printf("Founded %s windows manager", wm)
+	fmt.Printf("Founded %s windows manager\n", wm)
 	return wm
 }
 
@@ -223,20 +225,38 @@ func generateWallpaper(images []image.Image) string {
 }
 
 func searchByName(userName string) []instagram.Media {
-	fmt.Printf("Searching by username %s", userName)
+	fmt.Printf("Searching by username %s\n", userName)
 	client := instagram.NewClient(nil)
 	client.ClientID = CLIENT_ID
 	users, _, err := client.Users.Search(userName, nil)
 	if err != nil {
-		log.Fatalf("Can't find user with name %s", userName)
+		log.Fatalf("Can't find user with name %s\n", userName)
 	}
 	fmt.Printf("Found user %s", users[0].Username)
 	media, _, err := client.Users.RecentMedia(users[0].ID, nil)
 	if err != nil {
-		log.Fatalf("Can't load data from instagram: %v", err)
+		log.Fatalf("Can't load data from instagram: %v\n", err)
 	}
 
-	return media[0:6]
+	return randMedia(media)
+}
+
+func randMedia(media []instagram.Media) []instagram.Media {
+	if len(media) < 6 {
+		log.Fatalf("Not enough media")
+	}
+	if len(media) == 6 {
+		return media
+	}
+
+	res := make([]instagram.Media, 6)
+	mathRand.Seed(time.Now().UTC().UnixNano())
+	list := mathRand.Perm(len(media))[0:6]
+	for i, n := range list {
+		res[i] = media[n]
+	}
+
+	return res
 }
 
 func searchByTag(tag string) []instagram.Media {
@@ -248,7 +268,7 @@ func searchByTag(tag string) []instagram.Media {
 		log.Fatalf("Can't load data from instagram: %v", err)
 	}
 
-	return media[0:6]
+	return randMedia(media)
 }
 
 func getImagesFromFolder(path string) []image.Image {
