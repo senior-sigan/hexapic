@@ -4,12 +4,12 @@ import (
 	"crypto/rand"
 	"flag"
 	"fmt"
-	"github.com/blan4/hexapic/core"
 	"github.com/blan4/hexapic/wm"
 	"github.com/google/go-github/github"
 	"image"
 	"image/jpeg"
 	"log"
+	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -19,6 +19,7 @@ import (
 const VERSION string = "\"0.2.0\""
 const USERNAME string = "blan4"
 const REPOSITORY string = "Hexapic"
+const API_URL string = "http://hexapicserv.appspot.com"
 
 func checkUpdate() {
 	client := github.NewClient(nil)
@@ -84,6 +85,22 @@ func randStr(str_size int) string {
 	return string(bytes)
 }
 
+func loadImage(query string, value string) image.Image {
+	httpClient := http.DefaultClient
+	resp, err := httpClient.Get(fmt.Sprintf("%s/?%s=%s", API_URL, query, value))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	img, format, err := image.Decode(resp.Body)
+	if err != nil {
+		log.Fatalf("Can't decode image of format %s: %v", format, err)
+	}
+
+	return img
+}
+
 func saveWallpaper(wallpaper image.Image) string {
 	filename := filepath.Join(getPicturesHome(), randStr(20)+".jpg")
 
@@ -110,7 +127,6 @@ func init() {
 	flag.StringVar(&tag, "t", "", "Make Hexapic from latest pictures by tag")
 	flag.BoolVar(&isCheckUpdate, "c", false, "Check for new Hexapic version")
 	flag.BoolVar(&version, "v", false, "Current version")
-	flag.StringVar(&directory, "d", "", "Debug mode. Path to folder with images")
 }
 
 var Usage = func() {
@@ -137,27 +153,15 @@ func main() {
 
 	w := wm.BuildSetter()
 
-	if len(directory) != 0 {
-		canvasFileName := saveWallpaper(core.GenerateWallpaper(getImagesFromFolder(directory)))
-		w.Set(canvasFileName)
-		return
-	}
-
 	if len(tag) != 0 {
-		wallpaper, err := core.GetWallpaper("tag", tag, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
+		wallpaper := loadImage("tag", tag)
 		canvasFileName := saveWallpaper(wallpaper)
 		w.Set(canvasFileName)
 		return
 	}
 
 	if len(userName) != 0 {
-		wallpaper, err := core.GetWallpaper("user", userName, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
+		wallpaper := loadImage("user", userName)
 		canvasFileName := saveWallpaper(wallpaper)
 		w.Set(canvasFileName)
 		return
