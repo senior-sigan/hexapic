@@ -35,7 +35,8 @@ You can simple download latest [release](https://github.com/blan4/Hexapic/releas
 - [x] Check Updates
 - [x] API Server
 - [ ] Resize pictures if format is bad
-- [ ] Choose dimension of collage (2x3 || 3x2 || 4x3)
+- [x] Choose dimension of collage (2x3 || 3x2 || 4x3)
+- [x] Location Search
 - [ ] Windows{7|8|8.1|10}
 - [ ] Auto Updating
 

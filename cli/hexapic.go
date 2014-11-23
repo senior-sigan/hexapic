@@ -16,7 +16,7 @@ import (
 	"strings"
 )
 
-const VERSION string = "\"0.3.0\""
+const VERSION string = "\"0.4.0\""
 const USERNAME string = "blan4"
 const REPOSITORY string = "Hexapic"
 const API_URL string = "http://hexapicserv.appspot.com"
@@ -85,9 +85,10 @@ func randStr(str_size int) string {
 	return string(bytes)
 }
 
-func loadImage(query string, value string) image.Image {
+func loadImage(query string) image.Image {
+	fmt.Println(query)
 	httpClient := http.DefaultClient
-	resp, err := httpClient.Get(fmt.Sprintf("%s/?%s=%s", API_URL, query, value))
+	resp, err := httpClient.Get(query)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -120,11 +121,13 @@ var tag string
 var userName string
 var directory string
 var isCheckUpdate bool
+var location bool
 var version bool
 
 func init() {
 	flag.StringVar(&userName, "u", "", "Make Hexapic from user's pictures. Searching by name")
 	flag.StringVar(&tag, "t", "", "Make Hexapic from latest pictures by tag")
+	flag.BoolVar(&location, "l", false, "Make Hexpic from nearest photos via geocoding")
 	flag.BoolVar(&isCheckUpdate, "c", false, "Check for new Hexapic version")
 	flag.BoolVar(&version, "v", false, "Current version")
 }
@@ -153,15 +156,22 @@ func main() {
 
 	w := wm.BuildSetter()
 
+	if location {
+		wallpaper := loadImage(fmt.Sprintf("%s/%s", API_URL, "location"))
+		canvasFileName := saveWallpaper(wallpaper)
+		w.Set(canvasFileName)
+		return
+	}
+
 	if len(tag) != 0 {
-		wallpaper := loadImage("tag", tag)
+		wallpaper := loadImage(fmt.Sprintf("%s/?%s=%s", API_URL, "tag", tag))
 		canvasFileName := saveWallpaper(wallpaper)
 		w.Set(canvasFileName)
 		return
 	}
 
 	if len(userName) != 0 {
-		wallpaper := loadImage("user", userName)
+		wallpaper := loadImage(fmt.Sprintf("%s/?%s=%s", API_URL, "user", userName))
 		canvasFileName := saveWallpaper(wallpaper)
 		w.Set(canvasFileName)
 		return

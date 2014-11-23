@@ -97,6 +97,18 @@ func (self *SearchApi) SearchByTag(tag string) []image.Image {
 	return getImages(m, self.httpClient)
 }
 
+func (self *SearchApi) SearchByLocation(lat float64, lng float64) []image.Image {
+	fmt.Printf("Searching by location area [%s, %s]", lat, lng)
+	opt := &instagram.Parameters{Count: 100, Lat: lat, Lng: lng}
+	media, _, err := self.client.Media.Search(opt)
+	if err != nil {
+		log.Fatalf("Can't load data from instagram: %v\n", err)
+	}
+
+	m := randMedia(media, self.Count)
+	return getImages(m, self.httpClient)
+}
+
 func NewSearchApi(clientId string, httpClient *http.Client) (s *SearchApi) {
 	inst_client := instagram.NewClient(httpClient)
 	inst_client.ClientID = clientId

@@ -10,6 +10,8 @@
     <img src="https://raw.githubusercontent.com/blan4/Hexapic/master/public/cats.jpg">
     <h2>Don't like Cats? </h2>
     <p>Use this <b>simple</b> API to get something more: <code>http://hexapicserv.appspot.com/?tag=tagname</code> or <code>http://hexapicserv.appspot.com/?user=username</code></p>
+    <h2>Photos around you</h2>
+    <p><a href='javascript:void(0)' id='locate'>Locate me</a> and make collage</p>
     <h2>Super API</h2>
     <p>What? You want super flexible API to generate sophisticated collage, don't you? Definitly you should read this <a href="https://github.com/blan4/Hexapic/wiki/API">documentation</a>!!</p>
     <h3>Support Me</h3>
@@ -19,6 +21,23 @@
     <footer>Hexapic is created by Senior Sigan aka <a href="https://github.com/blan4">Blan4</a></footer>
     <script type="text/javascript">
     window.twttr=(function(d,s,id){var t,js,fjs=d.getElementsByTagName(s)[0];if(d.getElementById(id)){return}js=d.createElement(s);js.id=id;js.src="https://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);return window.twttr||(t={_e:[],ready:function(f){t._e.push(f)}})}(document,"script","twitter-wjs"));
+    </script>
+    <script type="text/javascript">
+      (function(){
+        document.getElementById('locate').addEventListener('click', function(ev){
+          ev.preventDefault();
+          if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(function(pos){
+              var href = ["/location?lat=", pos.coords.latitude, "&lng=", pos.coords.longitude].join('');
+              window.location.href = href;
+            }, function(){
+              window.location.href = '/location';  
+            });
+          } else {
+            window.location.href = '/location';
+          }
+        }, false);
+      })();
     </script>
   </body>
 </html>
