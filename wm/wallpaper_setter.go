@@ -19,15 +19,15 @@ type KDE4WallpaperSetter struct{}
 
 func (g *Gnome3WallpaperSetter) Set(path string) {
 	fmt.Printf("Set desktop wallpaper %s\n", path)
-	err := exec.Command("gsettings", "set", "org.gnome.desktop.background", "picture-uri", "file:///", path).Start()
+	err := exec.Command("gsettings", "set", "org.gnome.desktop.background", "picture-uri", fmt.Sprintf("file:%s", path)).Run()
 	if err != nil {
-		fmt.Printf("Can't set desktop wallpaper %s: %v\n", path, err)
+		fmt.Printf("Can't set desktop wallpaper %s: %s\n", path, err)
 	}
 }
 
 func (m *MateWallpaperSetter) Set(path string) {
 	fmt.Printf("Set desktop wallpaper %s\n", path)
-	err := exec.Command("gsettings", "set", "org.mate.background", "picture-filename", path).Start()
+	err := exec.Command("gsettings", "set", "org.mate.background", "picture-filename", path).Run()
 	if err != nil {
 		fmt.Printf("Can't set desktop wallpaper %s: %v", path, err)
 	}
@@ -67,6 +67,7 @@ var WM = map[string]WallpaperSetter{
 	"Gala":             new(Gnome3WallpaperSetter),
 	"Kwin":             new(KDE4WallpaperSetter),
 	"Mutter (Muffin)":  new(CinnamonWallpaperSetter),
+	"Compiz":           new(Gnome3WallpaperSetter),
 }
 
 func GetWMName() string {
