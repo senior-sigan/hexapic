@@ -29,7 +29,7 @@ func checkUpdate() {
 	}
 
 	if len(releases) == 0 {
-		fmt.Println("There is no releases for this program at github.com/%s/%s", USERNAME, REPOSITORY)
+		fmt.Printf("There is no releases for this program at github.com/%s/%s\n", USERNAME, REPOSITORY)
 		return
 	}
 
@@ -38,14 +38,14 @@ func checkUpdate() {
 	if VERSION == latest_tag {
 		fmt.Println("There are no updates for you")
 	} else {
-		fmt.Printf("Download version %s at %s", latest_tag, latest_url)
+		fmt.Printf("Download version %s at %s\n", latest_tag, latest_url)
 	}
 }
 
 func getPicturesHome() string {
 	usr, err := user.Current()
 	if err != nil {
-		log.Fatalf("Can't get user dir %s", err)
+		log.Fatalf("Can't get user dir %s\n", err)
 	}
 	//TODO: create dir if not exists
 	return filepath.Join(usr.HomeDir, "Pictures", "hexapic")
@@ -63,7 +63,7 @@ func getImagesFromFolder(path string) []image.Image {
 				img, format, err := image.Decode(file)
 				fmt.Println(format)
 				if err != nil {
-					log.Fatalf("Can't decode %s", err)
+					log.Fatalf("Can't decode %s\n", err)
 				}
 				images = append(images, img)
 			}
@@ -107,7 +107,7 @@ func saveWallpaper(wallpaper image.Image) string {
 
 	toimg, err := os.Create(filename)
 	if err != nil {
-		log.Fatalf("Can't create file %v", err)
+		log.Fatalf("Can't create file %v\n", err)
 	}
 	defer toimg.Close()
 	jpeg.Encode(toimg, wallpaper, &jpeg.Options{jpeg.DefaultQuality})
