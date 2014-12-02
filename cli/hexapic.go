@@ -42,13 +42,21 @@ func checkUpdate() {
 	}
 }
 
-func getPicturesHome() string {
-	usr, err := user.Current()
-	if err != nil {
+func getPicturesHome() (path string) {
+	if usr, err := user.Current(); err != nil {
 		log.Fatalf("Can't get user dir %s\n", err)
+	} else {
+		path = filepath.Join(usr.HomeDir, "Pictures", "hexapic")
 	}
-	//TODO: create dir if not exists
-	return filepath.Join(usr.HomeDir, "Pictures", "hexapic")
+
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		if err := os.MkdirAll(path, 0766); err != nil {
+			log.Fatalf("Can't create dir %s: %v", path, err)
+		}
+	}
+
+	return path
 }
 
 func getImagesFromFolder(path string) []image.Image {
