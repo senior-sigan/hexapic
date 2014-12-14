@@ -4,21 +4,31 @@ import (
 	"appengine"
 	"appengine/datastore"
 	"appengine/urlfetch"
+	"encoding/json"
 	"fmt"
 	hexapic "github.com/blan4/hexapic/core"
 	"image"
 	"image/jpeg"
 	"io/ioutil"
+	"log"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
-const CLIENT_ID string = "417c3ee8c9544530b83aa1c24de2abb3"
+const (
+	CLIENT_ID   string = "417c3ee8c9544530b83aa1c24de2abb3"
+	UUID_LENGTH int    = 15
+)
 
 var (
-	imageQuality = jpeg.Options{Quality: jpeg.DefaultQuality}
-	index        []byte
+	imageQuality    = jpeg.Options{Quality: jpeg.DefaultQuality}
+	imageBadQuality = jpeg.Options{Quality: 50}
+	index           []byte
+	tagList         = [...]string{"cat", "dog", "lifeofadventure", "nya", "train"}
+	letters         = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 )
 
 type Tag struct {
@@ -26,11 +36,103 @@ type Tag struct {
 	Count int
 }
 
+type Question struct {
+	UID      string
+	Answer   string
+	Variants []string
+}
+
+type QuestionResponse struct {
+	UID      string   `json:"uid"`
+	Variants []string `json:"variants"`
+}
+
 func init() {
 	http.HandleFunc("/", handler)
 	http.HandleFunc("/stat", stat)
 	http.HandleFunc("/location", location)
+	http.HandleFunc("/random", random)
 	index, _ = ioutil.ReadFile("index.html")
+}
+
+func generateUID() string {
+	b := make([]rune, UUID_LENGTH)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
+}
+
+func generateTags() (uid string, answer string, variants []string) {
+	rand.Seed(time.Now().UTC().UnixNano())
+	randList := rand.Perm(len(tagList))[0:4]
+	log.Printf("Rand = %v", randList)
+	answerIndex := rand.Int31n(4)
+	answer = tagList[randList[answerIndex]]
+	for _, index := range randList {
+		variants = append(variants, tagList[index])
+	}
+	log.Printf("Tags = %v", variants)
+	log.Printf("Answer = %v", answer)
+	uid = generateUID()
+	log.Printf("UID = %v", uid)
+
+	return
+}
+
+func random(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+
+	if key := r.FormValue("uid"); key != "" {
+		k := datastore.NewKey(c, "Question", key, 0, nil)
+		question := new(Question)
+
+		httpClient := urlfetch.Client(c)
+		api := hexapic.NewSearchApi(CLIENT_ID, httpClient)
+		api.Count = 4
+
+		if err := datastore.Get(c, k, question); err != nil {
+			log.Printf("Can't find question for uid %v", key)
+			http.Error(w, err.Error(), 404)
+			return
+		} else {
+			if answer := r.FormValue("answer"); answer != "" {
+				isRight := bool(answer == question.Answer)
+				fmt.Fprintf(w, "{\"answer\":\"%s\",\"isRight\":\"%v\"}", answer, isRight)
+				if isRight {
+					datastore.Delete(c, k)
+				}
+				return
+			}
+			tag := question.Answer
+			imgs := api.SearchByTag(tag)
+			img := hexapic.GenerateCollage(imgs, 2, 2)
+			w.Header().Set("Content-Type", "image/jpeg")
+			jpeg.Encode(w, img, &imageBadQuality)
+			return
+		}
+	}
+
+	uid, answer, variants := generateTags()
+	k := datastore.NewKey(c, "Question", uid, 0, nil)
+	question := new(Question)
+
+	datastore.Get(c, k, question)
+	question.UID = uid
+	question.Answer = answer
+	question.Variants = variants
+
+	if _, err := datastore.Put(c, k, question); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	resp := &QuestionResponse{
+		UID:      question.UID,
+		Variants: question.Variants,
+	}
+	data, _ := json.Marshal(resp)
+	fmt.Fprintf(w, "%s", data)
 }
 
 func location(w http.ResponseWriter, r *http.Request) {
