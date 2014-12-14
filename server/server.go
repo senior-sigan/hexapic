@@ -82,6 +82,7 @@ func generateTags() (uid string, answer string, variants []string) {
 
 func random(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
+	w.Header().Add("Access-Control-Allow-Origin", "*")
 
 	if key := r.FormValue("uid"); key != "" {
 		k := datastore.NewKey(c, "Question", key, 0, nil)
