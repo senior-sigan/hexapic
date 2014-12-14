@@ -27,7 +27,7 @@ var (
 	imageQuality    = jpeg.Options{Quality: jpeg.DefaultQuality}
 	imageBadQuality = jpeg.Options{Quality: 50}
 	index           []byte
-	tagList         = [...]string{"pomodoro", "birthday", "twins", "hospital", "sport", "pet", "duckface", "rainbow", "tatoo", "car", "champion", "makeup", "bset_friends", "snowman", "pigeon", "beard", "sunglasses", "pool", "piano", "butterfly", "internet_explorer", "pigeoff", "steampunk", "bike", "military", "graffiti", "starwars", "delorean", "dwarffortress", "punkisnotdead", "cookies", "gdg", "devfest", "retrofuturism", "thecakeisalie", "selfie", "minimalism_world", "explorerussia", "latte", "marshmellow", "cupcake", "macarons"}
+	tagList         = [...]string{"pomodoro", "birthday", "twins", "hospital", "sport", "pet", "duckface", "rainbow", "tatoo", "car", "champion", "makeup", "best_friends", "snowman", "pigeon", "beard", "sunglasses", "pool", "piano", "butterfly", "internet_explorer", "pigeoff", "steampunk", "bike", "military", "graffiti", "starwars", "delorean", "dwarffortress", "punkisnotdead", "cookies", "gdg", "devfest", "retrofuturism", "thecakeisalie", "selfie", "minimalism_world", "explorerussia", "latte", "marshmellow", "cupcake", "macarons"}
 	letters         = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 )
 
