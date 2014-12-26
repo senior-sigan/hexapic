@@ -27,7 +27,7 @@ var (
 	imageQuality    = jpeg.Options{Quality: jpeg.DefaultQuality}
 	imageBadQuality = jpeg.Options{Quality: 50}
 	index           []byte
-	tagList         = [...]string{"pomodoro", "birthday", "twins", "hospital", "sport", "pet", "duckface", "rainbow", "tatoo", "car", "champion", "makeup", "best_friends", "snowman", "pigeon", "beard", "sunglasses", "pool", "piano", "butterfly", "internet_explorer", "pigeoff", "steampunk", "bike", "military", "graffiti", "starwars", "delorean", "dwarffortress", "punkisnotdead", "cookies", "gdg", "devfest", "retrofuturism", "thecakeisalie", "selfie", "minimalism_world", "explorerussia", "latte", "marshmellow", "cupcake", "macarons"}
+	tagList         = make([]string, 0)
 	letters         = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 )
 
@@ -53,6 +53,13 @@ func init() {
 	http.HandleFunc("/location", location)
 	http.HandleFunc("/random", random)
 	index, _ = ioutil.ReadFile("index.html")
+	tagListRaw, _ := ioutil.ReadFile("tags")
+	for _, tag := range strings.Split(string(tagListRaw), "\n") {
+		if tag != "" {
+			tagList = append(tagList, tag)
+		}
+	}
+	log.Printf("tags loaded: %v", len(tagList))
 }
 
 func generateUID() string {
