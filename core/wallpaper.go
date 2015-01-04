@@ -8,7 +8,6 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"sync"
 	"time"
 )
 
@@ -20,14 +19,14 @@ type SearchApi struct {
 
 const Count int = 6
 
-func randMedia(media []instagram.Media, count int) []instagram.Media {
-	if len(media) < count {
+func (self *SearchApi) randMedia(media []instagram.Media) []instagram.Media {
+	if len(media) < self.Count {
 		log.Fatalf("Not enough media")
 	}
 
-	res := make([]instagram.Media, count)
+	res := make([]instagram.Media, len(media))
 	rand.Seed(time.Now().UTC().UnixNano())
-	list := rand.Perm(len(media))[0:count]
+	list := rand.Perm(len(media))
 	for i, n := range list {
 		res[i] = media[n]
 	}
@@ -35,34 +34,40 @@ func randMedia(media []instagram.Media, count int) []instagram.Media {
 	return res
 }
 
-func getImages(media []instagram.Media, httpClient *http.Client) []image.Image {
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
-	images := make([]image.Image, len(media))
-	var wg sync.WaitGroup
-	for i, m := range media[0:] {
-		wg.Add(1)
-		go func(i int, m instagram.Media) {
-			defer wg.Done()
-			log.Printf("Url: %v\n", m.Link)
-			resp, err := httpClient.Get(m.Images.StandardResolution.URL)
-			if err != nil {
-				log.Fatal(err)
-			}
-			defer resp.Body.Close()
+func (self *SearchApi) getImages(orderedMedia []instagram.Media) []image.Image {
+	media := self.randMedia(orderedMedia)
+	images := make([]image.Image, self.Count)
+	needToLoad := self.Count
 
-			img, format, err := image.Decode(resp.Body)
-			if err != nil {
-				log.Fatalf("Can't decode image %s of format %s: %v", m.Images.StandardResolution.URL, format, err)
-			}
+	i := 0
+	for needToLoad > 0 && i < len(media) {
+		m := media[i]
+		log.Printf("Url: %v\n", m.Images.StandardResolution.URL)
+		resp, err := self.httpClient.Get(m.Images.StandardResolution.URL)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer resp.Body.Close()
 
-			images[i] = img
-			fmt.Print(".")
-		}(i, m)
+		img, format, err := image.Decode(resp.Body)
+		if err != nil {
+			log.Fatalf("Can't decode image %s of format %s: %v", m.Images.StandardResolution.URL, format, err)
+		}
+
+		if IsSquare(img) {
+			images[needToLoad-1] = img
+			needToLoad--
+		} else {
+			log.Print("skipped")
+		}
+		i++
+		log.Println()
 	}
-	wg.Wait()
 	fmt.Println()
+
+	if needToLoad > 0 {
+		log.Fatalf("Not enough media: can't find good pictures")
+	}
 
 	return images
 }
@@ -80,8 +85,7 @@ func (self *SearchApi) SearchByName(userName string) []image.Image {
 		log.Fatalf("Can't load data from instagram: %v\n", err)
 	}
 
-	m := randMedia(media, self.Count)
-	return getImages(m, self.httpClient)
+	return self.getImages(media)
 }
 
 func (self *SearchApi) SearchByTag(tag string) []image.Image {
@@ -93,8 +97,7 @@ func (self *SearchApi) SearchByTag(tag string) []image.Image {
 		log.Fatalf("Can't load data from instagram: %v", err)
 	}
 
-	m := randMedia(media, self.Count)
-	return getImages(m, self.httpClient)
+	return self.getImages(media)
 }
 
 func (self *SearchApi) SearchByLocation(lat float64, lng float64) []image.Image {
@@ -105,14 +108,16 @@ func (self *SearchApi) SearchByLocation(lat float64, lng float64) []image.Image 
 		log.Fatalf("Can't load data from instagram: %v\n", err)
 	}
 
-	m := randMedia(media, self.Count)
-	return getImages(m, self.httpClient)
+	return self.getImages(media)
 }
 
 func NewSearchApi(clientId string, httpClient *http.Client) (s *SearchApi) {
 	inst_client := instagram.NewClient(httpClient)
 	inst_client.ClientID = clientId
 
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
 	s = &SearchApi{httpClient: httpClient, client: inst_client, Count: Count}
 
 	return
