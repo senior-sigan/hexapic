@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"github.com/blan4/hexapic/instagramFix"
 	"github.com/carbocation/go-instagram/instagram"
+	"github.com/oleiade/lane"
 	"image"
 	"log"
 	"math/rand"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -35,39 +37,47 @@ func (self *SearchApi) randMedia(media []instagram.Media) []instagram.Media {
 }
 
 func (self *SearchApi) getImages(orderedMedia []instagram.Media) []image.Image {
+	var wg sync.WaitGroup
+	var mediaQueue *lane.Queue = lane.NewQueue()
 	media := self.randMedia(orderedMedia)
 	images := make([]image.Image, self.Count)
-	needToLoad := self.Count
-
-	i := 0
-	for needToLoad > 0 && i < len(media) {
-		m := media[i]
-		log.Printf("Url: %v\n", m.Images.StandardResolution.URL)
-		resp, err := self.httpClient.Get(m.Images.StandardResolution.URL)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer resp.Body.Close()
-
-		img, format, err := image.Decode(resp.Body)
-		if err != nil {
-			log.Fatalf("Can't decode image %s of format %s: %v", m.Images.StandardResolution.URL, format, err)
-		}
-
-		if IsSquare(img) {
-			images[needToLoad-1] = img
-			needToLoad--
-		} else {
-			log.Print("skipped")
-		}
-		i++
-		log.Println()
+	for _, m := range media[0:] {
+		mediaQueue.Enqueue(m)
 	}
-	fmt.Println()
 
-	if needToLoad > 0 {
-		log.Fatalf("Not enough media: can't find good pictures")
+	for index := 0; index < self.Count; index++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			for {
+				value := mediaQueue.Dequeue()
+				if value == nil {
+					log.Fatalf("Not enough media")
+				}
+				m := value.(instagram.Media)
+				log.Printf("Url: %v\n", m.Images.StandardResolution.URL)
+				resp, err := self.httpClient.Get(m.Images.StandardResolution.URL)
+				if err != nil {
+					log.Fatal(err)
+				}
+				defer resp.Body.Close()
+
+				img, format, err := image.Decode(resp.Body)
+				if err != nil {
+					log.Fatalf("Can't decode image %s of format %s: %v", m.Images.StandardResolution.URL, format, err)
+				}
+
+				if IsSquare(img) {
+					images[index] = img
+					return
+				} else {
+					log.Print("skipped")
+				}
+			}
+		}(index)
 	}
+
+	wg.Wait()
 
 	return images
 }
