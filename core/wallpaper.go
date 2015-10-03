@@ -58,13 +58,15 @@ func (self *SearchApi) getImages(orderedMedia []instagram.Media) []image.Image {
 				log.Printf("Url: %v\n", m.Images.StandardResolution.URL)
 				resp, err := self.httpClient.Get(m.Images.StandardResolution.URL)
 				if err != nil {
-					log.Fatal(err)
+					log.Printf("Can't get image %s: %v", m.Images.StandardResolution.URL, err)
+					continue
 				}
 				defer resp.Body.Close()
 
 				img, format, err := image.Decode(resp.Body)
 				if err != nil {
-					log.Fatalf("Can't decode image %s of format %s: %v", m.Images.StandardResolution.URL, format, err)
+					log.Printf("Can't decode image %s of format %s: %v", m.Images.StandardResolution.URL, format, err)
+					continue
 				}
 
 				if IsSquare(img) {
