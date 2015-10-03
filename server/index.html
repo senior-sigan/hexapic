@@ -12,7 +12,7 @@
     <meta property="og:description" content="Download last 6 pictures from instagram, generate collage and set it as desktop wallpaper." />
     <meta property="og:url" content="hexapicserv.appspot.com" />
     <meta property="og:locale" content="en_EN" />
-    
+
     <title>Hexapic</title>
   </head>
   <body>
@@ -25,6 +25,8 @@
     <p><a href='javascript:void(0)' id='locate'>Locate me</a> and make collage</p>
     <h2>Hexapic Quiz</h2>
     <p>Guess as much instagram tags as you can. <a href="http://cat-in-the-dark-wood.github.io/hexapic-quiz">Play now!</a></p>
+    <h2>QuestagBot</h2>
+    <p>You see 4 pictures. Guess which tag all this pictures have. <a href="https://telegram.me/QuestagBot">Telegram BOT</a></p>
     <h2>Super API</h2>
     <p>What? You want super flexible API to generate sophisticated collage, don't you? Definitly you should read this <a href="https://github.com/blan4/Hexapic/wiki/API">documentation</a>!!</p>
     <h3>Support Me</h3>
@@ -44,7 +46,7 @@
               var href = ["/location?lat=", pos.coords.latitude, "&lng=", pos.coords.longitude].join('');
               window.location.href = href;
             }, function(){
-              window.location.href = '/location';  
+              window.location.href = '/location';
             });
           } else {
             window.location.href = '/location';
@@ -52,7 +54,7 @@
         }, false);
       })();
     </script>
-    
+
     <!-- Yandex.Metrika counter -->
     <script type="text/javascript">
         (function (d, w, c) {
