@@ -22,10 +22,6 @@ type SearchApi struct {
 const Count int = 6
 
 func (self *SearchApi) randMedia(media []instagram.Media) []instagram.Media {
-	if len(media) < self.Count {
-		log.Fatalf("Not enough media")
-	}
-
 	res := make([]instagram.Media, len(media))
 	rand.Seed(time.Now().UTC().UnixNano())
 	list := rand.Perm(len(media))
@@ -37,8 +33,11 @@ func (self *SearchApi) randMedia(media []instagram.Media) []instagram.Media {
 }
 
 func (self *SearchApi) getImages(orderedMedia []instagram.Media) []image.Image {
+	if len(orderedMedia) < self.Count {
+		log.Fatalf("Not enough media %v, expected %v", len(orderedMedia), self.Count)
+	}
 	var wg sync.WaitGroup
-	var mediaQueue *lane.Queue = lane.NewQueue()
+	var mediaQueue = lane.NewQueue()
 	media := self.randMedia(orderedMedia)
 	images := make([]image.Image, self.Count)
 	for _, m := range media[0:] {
@@ -52,10 +51,13 @@ func (self *SearchApi) getImages(orderedMedia []instagram.Media) []image.Image {
 			for {
 				value := mediaQueue.Dequeue()
 				if value == nil {
-					log.Fatalf("Not enough media")
+					log.Fatal("Not enough media")
 				}
 				m := value.(instagram.Media)
-				log.Printf("Url: %v\n", m.Images.StandardResolution.URL)
+				log.Printf("Url: %v\tWidth: %v, Height: %v\n",
+					m.Images.StandardResolution.URL,
+					m.Images.StandardResolution.Width,
+					m.Images.StandardResolution.Height)
 				resp, err := self.httpClient.Get(m.Images.StandardResolution.URL)
 				if err != nil {
 					log.Printf("Can't get image %s: %v", m.Images.StandardResolution.URL, err)
@@ -72,15 +74,18 @@ func (self *SearchApi) getImages(orderedMedia []instagram.Media) []image.Image {
 				if IsSquare(img) {
 					images[index] = img
 					return
-				} else {
-					log.Print("skipped")
 				}
+				log.Print("skipped")
 			}
 		}(index)
 	}
 
 	wg.Wait()
-
+	for _, i := range images {
+		if i == nil {
+			log.Fatalf("Not enough media expected %v", self.Count)
+		}
+	}
 	return images
 }
 
@@ -100,13 +105,49 @@ func (self *SearchApi) SearchByName(userName string) []image.Image {
 	return self.getImages(media)
 }
 
+func filter(media []instagram.Media) []instagram.Media {
+	var filtered []instagram.Media
+	log.Print("Start media filter")
+	for _, m := range media {
+		if len(m.Tags) > 14 {
+			log.Printf("Skipped but for tags %v", len(m.Tags))
+			continue
+		}
+		if m.Type != "image" {
+			log.Printf("Skipped: it's not image")
+			continue
+		}
+		if len(m.UsersInPhoto) > 10 {
+			log.Printf("Skipped but for users in photo %v", len(m.UsersInPhoto))
+			continue
+		}
+		if m.Images.StandardResolution.Height < 300 || m.Images.StandardResolution.Width < 300 {
+			log.Printf("Skipped but for low resolution %vx%v", m.Images.StandardResolution.Height, m.Images.StandardResolution.Width)
+			continue
+		}
+		filtered = append(filtered, m)
+	}
+	return filtered
+}
+
 func (self *SearchApi) SearchByTag(tag string) []image.Image {
+	// Instagram return 33 images, we actually need self.Count images. But some of them could be bad. 3 times more images could be okay
+	count := self.Count * 3
 	fmt.Printf("Searching by tag %s\n", tag)
 	service := instagramFix.TagsService{Client: self.client}
 	params := &instagram.Parameters{Count: 100}
-	media, _, err := service.RecentMediaFix(tag, params)
-	if err != nil {
-		log.Fatalf("Can't load data from instagram: %v", err)
+	var media []instagram.Media
+	for {
+		nextMedia, page, err := service.RecentMediaFix(tag, params)
+		if err != nil {
+			log.Fatalf("Can't load data from instagram: %v", err)
+		}
+		media = append(media, filter(nextMedia)...)
+		if len(media) >= count {
+			break
+		}
+		log.Printf("We get %v images. We need %v. So load more", len(media), count)
+		params.MaxID = page.NextMaxID
 	}
 
 	return self.getImages(media)
