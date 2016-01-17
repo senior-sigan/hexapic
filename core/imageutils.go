@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/nfnt/resize"
 	"image"
 	"image/draw"
 	_ "image/gif"
@@ -18,7 +19,7 @@ func GenerateCollage(images []image.Image, height int, width int) image.Image {
 		log.Fatalf("Need %d pixs, founded %d", height*width, len(images))
 	}
 
-	canvas_image := image.NewRGBA(image.Rect(0, 0, 640*width, 640*height))
+	canvasImage := image.NewRGBA(image.Rect(0, 0, 640*width, 640*height))
 	fmt.Printf("Found %d pics", len(images))
 	for index, img := range images {
 		var x, y int
@@ -30,13 +31,44 @@ func GenerateCollage(images []image.Image, height int, width int) image.Image {
 			y = 640 * (index % height)
 		}
 		log.Printf("%d x %d", x, y)
-		draw.Draw(canvas_image, img.Bounds().Add(image.Pt(x, y)), img, image.ZP, draw.Src)
+		img = Resize(CropToSquare(img), 640)
+		draw.Draw(canvasImage, img.Bounds().Add(image.Pt(x, y)), img, image.ZP, draw.Src)
 	}
 
-	return image.Image(canvas_image)
+	return image.Image(canvasImage)
 }
 
-// Check is image real square or with white/black frame.
+//Resize image to sizes
+func Resize(img image.Image, width uint) image.Image {
+	if img.Bounds().Size().X == int(width) {
+		return img
+	}
+	return resize.Resize(width, 0, img, resize.Lanczos3)
+}
+
+//CropToSquare crop image so it be square
+func CropToSquare(img image.Image) image.Image {
+	width := img.Bounds().Size().X
+	height := img.Bounds().Size().Y
+	if width == height {
+		return img
+	}
+	var x, y, size int
+	if width > height {
+		x = (width - height) / 2
+		y = 0
+		size = height
+	} else {
+		x = 0
+		y = (height - width) / 2
+		size = width
+	}
+	canvas := image.NewRGBA(image.Rect(0, 0, size, size))
+	draw.Draw(canvas, canvas.Bounds(), img, image.Point{x, y}, draw.Src)
+	return canvas
+}
+
+// IsSquare checks if image is real square or with white/black frame.
 // TODO: it's quite stupid algorythm, but toss away 95% of bad pics
 func IsSquare(image image.Image) bool {
 	bounds := image.Bounds()
