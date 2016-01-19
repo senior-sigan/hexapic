@@ -95,13 +95,31 @@ func (self *SearchApi) SearchByName(userName string) []image.Image {
 	if err != nil {
 		log.Fatalf("Can't find user with name %s\n", userName)
 	}
-	fmt.Printf("Found user %s", users[0].Username)
-	params := &instagram.Parameters{Count: 100}
-	media, _, err := self.client.Users.RecentMedia(users[0].ID, params)
-	if err != nil {
-		log.Fatalf("Can't load data from instagram: %v\n", err)
+	var user *instagram.User
+	for _, u := range users {
+		if u.Username == userName {
+			user = &u
+			break
+		}
 	}
-
+	if user == nil {
+		log.Fatalf("Can't find user with username %v", userName)
+	}
+	fmt.Printf("Found user %s", user.Username)
+	params := &instagram.Parameters{Count: 100}
+	var media []instagram.Media
+	for {
+		nextMedia, page, err := self.client.Users.RecentMedia(user.ID, params)
+		if err != nil {
+			log.Fatalf("Can't load data from instagram: %v\n", err)
+		}
+		media = append(media, filter(nextMedia)...)
+		if len(media) >= self.Count*2 {
+			break
+		}
+		log.Printf("We get %v images. We need %v. So load more", len(media), self.Count*2)
+		params.MaxID = page.NextMaxID
+	}
 	return self.getImages(media)
 }
 
