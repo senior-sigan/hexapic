@@ -1,3 +1,6 @@
+# Broken!
+## Because of new instagram security policy. Thay do not allow searching for posts.
+
 #Hexapic
 
 Written by @blan4
